@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script data-require="jquery@*" data-semver="3.1.1"
+            src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script>
+        // server API URL
+        const api = "http://52.15.188.209:8080";
+
+        var allReceipts;   // Global variable for restoring all receipts
+        $(reloadAndDisplayReceipts)
+
+        function getTime(t){
+            var current = new Date().getTime();
+            var date3 = current - t;
+            var days=Math.floor(date3/(24*3600*1000));
+            var leave1=date3%(24*3600*1000);
+            var hours=Math.floor(leave1/(3600*1000));
+            var leave2=leave1%(3600*1000);
+            var minutes=Math.floor(leave2/(60*1000));
+            var leave3=leave2%(60*1000);
+            var seconds=Math.round(leave3/1000);
+            return days+"d "+hours+"h "+minutes+"m "+seconds+"s ";
+        }
+
+        function reloadAndDisplayReceipts() {
+            $(".receipt").remove();      // clear current receipts
+            $.getJSON(api + "/receipts", function (receipts) {
+                allReceipts = receipts;
+                for (var i = 0; i < allReceipts.length; i++) {
+                    var tagHTML = '';
+                    var receipt = receipts[i];
+                    var time = getTime(receipts[i].created);    // convert timestamp to elapsed time in miliseconds
+                    var merchant = receipts[i].merchantName;
+                    var amount = receipts[i].value;
+                    for(var tagIndex = 0; tagIndex < receipts[i].tags.length; tagIndex++) {   // insert tags HTML
+                        var tagContents = receipts[i].tags[tagIndex];
+                        tagHTML += '<div class="tagValue" onclick="removeTagAtIndex(' + i + ',' + tagIndex + ')">' + tagContents;
+                        tagHTML += '&ensp;<button class="XOutTag">&#10005;</button></div>';
+                    }
+                    tagHTML += '<button class="add-tag" onclick="showTagInput(' + i + ')"> Add Tags </button>';   //
+                    tagHTML = '<div class="tags">' + tagHTML + '</div>';
+                    $(`<div class="receipt">
+                          <div class="time">${time}</div>
+                          <div class="merchant">${merchant}</div>
+                          <div class="amount">${amount}</div>
+                          ${tagHTML}
+                      </div>`)
+                        .appendTo($("#receiptList"));
+                }
+            })
+        }
+    </script>
+</head>
+
+<body>
+<DIV id="container">
+    <h1 style="margin: 35px">My Receipts</h1>
+    <button class="button" id="add-receipt" style="margin: 25px" onclick="showForm()">+</button>
+    <div id="addReceiptForm" style="clear: both; text-align: center;"></div>
+    <div id="receiptList" style="margin: 20px 20px 20px 20px">
+        <table >
+            <tr>
+                <th style="font-size: 25px; font-weight:400">Time</th>
+            </tr>
+            <tr>
+                <th style="font-size: 25px; font-weight:400">Merchant Name</th>
+            </tr>
+            <tr>
+                <th style="font-size: 25px; font-weight:400">Price</th>
+            </tr>
+            <tr>
+                <th style="font-size: 25px; font-weight:400">Tags</th>
+            </tr>
+        </table>
+    </div>
+</DIV>
+</body>
+
+<!-- UI Helpers -->
+<script type="text/javascript">
+    function saveAddingReceipt() {
+        var merchantName = $('#merchant').val();
+        var amountValue = $('#amount').val();
+        var parameters = {"merchant": merchantName, "amount": amountValue};
+        AJAX_createReceipt(parameters);
+    }
+
+    function cancelAddingReceipt() {
+        $(".addReceiptPanel").remove();
+        $("#add-receipt").attr("disabled", false);
+    }
+
+    function showTagInput(receiptIndex) {
+        var tagTemplate = $('#tagHTML').html();
+        var receipt = $(".receipt")[receiptIndex];
+        var tag = $(".tags", receipt);
+        tag.append(tagTemplate);
+        $(".add-tag", receipt).attr("disabled", true);
+        $(".tag_input", tag).on('keypress', function (event) {
+            if (event.which === 13) {
+                var tagName = $(this).val();
+                if (tagName == '') return;
+                $(this).attr("disabled", "disabled");
+                AJAX_updateTag(allReceipts[receiptIndex].id, tagName, tag);
+            }
+        });
+    }
+
+    function removeTagAtIndex(receiptIndex, tagIndex) {
+        var receipt = allReceipts[receiptIndex]
+        AJAX_updateTag(receipt.id, receipt.tags[tagIndex]);
+    }
+
+    function showForm() {
+        $('#addReceiptForm').append($('#addReceip-template').html());
+        $("#add-receipt").attr("disabled", true);
+    }
+
+
+
+</script>
+
+
+<!-- AJAX -->
+
+
+
+<script id="tagHTML" type="text/FYY-template">
+    <div>
+        <input type="text" class="tag_input" name="tagInput"><br>
+    </div>
+</script>
+
+<script id="addReceip-template" type="text/FYY-template">
+    <div class="addReceiptPanel">
+        <input type="text" id="merchant" class="receiptInput" name="merchantName" placeholder="merchant"><br>
+        <input type="text" id="amount" class="receiptInput" name="amountValue" placeholder="amount"><br>
+        <div style="display: flex; justify-content: flex-end; width: 80%">
+            <button class="addReceiptBtn" id="cancel-receipt" style="background-color: blueviolet"
+                    onclick="cancelAddingReceipt()">cancel
+            </button>
+            <button class="addReceiptBtn" id="save-receipt" style="background-color: lightskyblue"
+                    onclick="saveAddingReceipt()">save
+            </button>
+        </div>
+    </div>
+</script>
+
+<style type="text/css">
+
+    h1 {
+        float: left;
+        font-family: optima;
+        color: deeppink;
+    }
+
+    ::-webkit-input-placeholder {
+        padding-left: 5px;
+        font-size: 20px;
+        font-style: italic;
+        color: #fff;
+    }
+
+    #container {
+        width: 300px;
+        border: 1px solid black;
+    }
+
+    .button {
+        text-align: center;
+        background-color: hotpink;
+        color: white;
+        font-size: 2em;
+        width: 100px;
+        border: 1px solid #229;
+        border-radius: 100px;
+
+    }
+
+    .addReceiptBtn {
+        border-width: 1px;
+        width: 70px;
+        height: 40px;
+        border-style: solid;
+        margin: 15px;
+        font-size: 100%;
+        font-weight: bold;
+        color: white;
+        text-align: center;
+        border-radius: 100px;
+    }
+
+    .addReceiptPanel {
+        border-width: 1px;
+        border-style: bold;
+        margin-left: 50px;
+        margin-right: 70px;
+        border-radius: 10px;
+    }
+
+    #receiptList {
+        clear: both;
+        border: 8px solid hotpink;
+        font-family: sans-serif;
+    }
+
+    .receipt {
+        background-color: lightcyan;
+        margin-bottom: 10px;
+    }
+
+    .table {
+        background-color: hotpink;
+    }
+
+    .receiptInput {
+        font-size: 20px;
+        padding-left: 5px;
+        font-weight: bold;
+        background-color: lavenderblush;
+        height: 20px;
+        margin: 10px;
+        color: hotpink;
+        width: 180px;
+    }
+
+    .tagInput {
+        width: 25%;
+        border-radius: 5px;
+        border-style: solid;
+        margin-bottom: 10px;
+        border-width: 2px;
+    }
+
+    .add-tag {
+        margin-bottom: 15px;
+        border-width: 1px;
+        margin-left: 25px;
+        margin-right: 25px;
+        width: 80px;
+        border-style: solid;
+        background-color: lightpink;
+        border-radius: 80px;
+        color: #eee;
+        margin-top: 15px;
+    }
+
+
+
+    .XOutTag {
+        background-color: transparent;
+        border-style: none;
+        margin: 10px 10px 10px 10px;
+    }
+
+
+    .tagValue {
+        margin-top: 10px;
+        background-color: lightpink;
+        border-radius: 10px;
+        border-width: 5px;
+        margin-left: 25px;
+        margin-right: 87%;
+        margin-bottom: 10px;
+    }
+</style>
+
+</html>
